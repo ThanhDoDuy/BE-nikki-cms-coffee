@@ -4,6 +4,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { MealsModule } from './meals/meals.module';
 import { StaffModule } from './staff/staff.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import { OrdersModule } from './orders/orders.module';
+import { SettingModule } from './setting/setting.module';
 
 @Module({
   imports: [
@@ -11,6 +13,8 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
     MongooseModule.forRoot(process.env.MONGO_URI || ''),
     MealsModule,
     StaffModule,
+    OrdersModule,
+    SettingModule,
   ],
 })
 export class AppModule implements NestModule {
