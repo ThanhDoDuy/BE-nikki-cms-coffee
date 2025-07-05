@@ -12,7 +12,14 @@ async function bootstrap() {
 
   app.enableCors();
 
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true, // Enable transformation
+    transformOptions: {
+      enableImplicitConversion: true, // Enable implicit conversion for query parameters
+    },
+    whitelist: true, // Strip properties that don't have decorators
+  }));
+  
   app.setGlobalPrefix('api/v1');
 
   const host = process.env.HOST || 'localhost';
