@@ -55,11 +55,16 @@ export class InvoiceService {
       month,
       isDeleted: false,
     })
-    .populate('room')
+    .populate({
+      path: 'room',
+      match: { isDeleted: false }
+    })
     .populate('utilityReading')
     .exec();
 
-    const typedInvoices = invoices as unknown as PopulatedInvoice[];
+    // Filter out invoices where room is null (due to isDeleted: true)
+    const validInvoices = invoices.filter(invoice => invoice.room !== null);
+    const typedInvoices = validInvoices as unknown as PopulatedInvoice[];
     const tableData = this.transformToTableFormat(typedInvoices);
 
     const summary = {
@@ -82,11 +87,17 @@ export class InvoiceService {
   }
 
   async findAll(): Promise<InvoicesResponse> {
-    const invoices = await this.invoiceModel.find()
-      .populate('room')
+    const invoices = await this.invoiceModel.find({ isDeleted: false })
+      .populate({
+        path: 'room',
+        match: { isDeleted: false }
+      })
       .populate('utilityReading')
       .exec();
-    return { data: invoices as unknown as PopulatedInvoice[] };
+    
+    // Filter out invoices where room is null (due to isDeleted: true)
+    const validInvoices = invoices.filter(invoice => invoice.room !== null);
+    return { data: validInvoices as unknown as PopulatedInvoice[] };
   }
 
   async findByMonth(month: string): Promise<InvoiceListResponse> {
@@ -94,11 +105,16 @@ export class InvoiceService {
       month,
       isDeleted: false,
     })
-    .populate('room')
+    .populate({
+      path: 'room',
+      match: { isDeleted: false }
+    })
     .populate('utilityReading')
     .exec();
 
-    const typedInvoices = invoices as unknown as PopulatedInvoice[];
+    // Filter out invoices where room is null (due to isDeleted: true)
+    const validInvoices = invoices.filter(invoice => invoice.room !== null);
+    const typedInvoices = validInvoices as unknown as PopulatedInvoice[];
 
     const summary = {
       total: typedInvoices.length,
