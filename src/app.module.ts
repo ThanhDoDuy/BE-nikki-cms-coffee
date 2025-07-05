@@ -8,6 +8,7 @@ import { OrdersModule } from './orders/orders.module';
 import { SettingModule } from './setting/setting.module';
 import { RoomsModule } from './house-renting/room/rooms.module';
 import { TenantModule } from './house-renting/tenant/tenant.module';
+import { UtilityReadingsModule } from './house-renting/utility-readings/utility-readings.module';
 
 @Module({
   imports: [
@@ -18,7 +19,8 @@ import { TenantModule } from './house-renting/tenant/tenant.module';
     OrdersModule,
     SettingModule,
     RoomsModule,
-    TenantModule
+    TenantModule,
+    UtilityReadingsModule
   ],
 })
 export class AppModule implements NestModule {
