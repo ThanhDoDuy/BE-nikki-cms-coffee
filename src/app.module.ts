@@ -9,6 +9,8 @@ import { SettingModule } from './setting/setting.module';
 import { RoomsModule } from './house-renting/room/rooms.module';
 import { TenantModule } from './house-renting/tenant/tenant.module';
 import { UtilityReadingsModule } from './house-renting/utility-readings/utility-readings.module';
+import { InvoiceModule } from './house-renting/invoice/invoice.module';
+import { SettingsModule } from './house-renting/settings/settings.module';
 
 @Module({
   imports: [
@@ -20,7 +22,9 @@ import { UtilityReadingsModule } from './house-renting/utility-readings/utility-
     SettingModule,
     RoomsModule,
     TenantModule,
-    UtilityReadingsModule
+    UtilityReadingsModule,
+    InvoiceModule,
+    SettingsModule
   ],
 })
 export class AppModule implements NestModule {

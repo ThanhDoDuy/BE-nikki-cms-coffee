@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, isValidObjectId } from 'mongoose';
+import { Model } from 'mongoose';
 import { UtilityReading, UtilityReadingDocument } from './schemas/utility-reading.schema';
 import { CreateUtilityReadingDto } from './dto/create-utility-reading.dto';
 import { UpdateUtilityReadingDto } from './dto/update-utility-reading.dto';
 import { Room, RoomDocument } from '../room/schemas/room.schema';
+import { InvoiceService } from '../invoice/invoice.service';
 
 @Injectable()
 export class UtilityReadingsService {
@@ -13,126 +14,30 @@ export class UtilityReadingsService {
     @InjectModel(Room.name) private roomModel: Model<RoomDocument>,
   ) {}
 
-  private async findRoomByNumberOrId(roomIdentifier: string): Promise<RoomDocument> {
-    let room: RoomDocument | null = null;
-
-    // First try to find by MongoDB ID if it's a valid ObjectId
-    if (isValidObjectId(roomIdentifier)) {
-      room = await this.roomModel.findOne({
-        _id: roomIdentifier,
-        isDeleted: false
-      });
-    }
-
-    // If not found by ID, try to find by room number
-    if (!room) {
-      room = await this.roomModel.findOne({
-        number: roomIdentifier,
-        isDeleted: false
-      });
-    }
-
-    if (!room) {
-      throw new NotFoundException(`Room ${roomIdentifier} not found`);
-    }
-
-    return room;
-  }
-
   async create(createUtilityReadingDto: CreateUtilityReadingDto) {
-    const room = await this.findRoomByNumberOrId(createUtilityReadingDto.room);
-
-    // Check if reading already exists for this room and month
-    const existingReading = await this.utilityReadingModel.findOne({
-      room: room._id,
-      month: createUtilityReadingDto.month,
-      isDeleted: false
-    });
-
-    if (existingReading) {
-      throw new BadRequestException(`Utility reading already exists for room ${room.number} in ${createUtilityReadingDto.month}`);
+    const room = await this.roomModel.findById(createUtilityReadingDto.room);
+    if (!room) {
+      throw new NotFoundException('Room not found');
     }
 
-    // Validate readings
-    if (createUtilityReadingDto.electricityEnd < createUtilityReadingDto.electricityStart) {
-      throw new BadRequestException('Electricity end reading cannot be less than start reading');
-    }
+    const utilityReading = new this.utilityReadingModel(createUtilityReadingDto);
+    const savedReading = await utilityReading.save() as UtilityReadingDocument;
 
-    if (createUtilityReadingDto.waterEnd < createUtilityReadingDto.waterStart) {
-      throw new BadRequestException('Water end reading cannot be less than start reading');
-    }
-
-    const utilityReading = new this.utilityReadingModel({
-      ...createUtilityReadingDto,
-      room: room._id
-    });
-    const savedReading = await (await utilityReading.save()).populate('room', 'number');
     return { data: savedReading };
   }
 
-  async findAll() {
-    const readings = await this.utilityReadingModel.find({ isDeleted: false })
-      .populate('room', 'number')
-      .sort({ month: -1 });
-    return { data: readings };
-  }
-
-  async findByMonth(month: string) {
-    const readings = await this.utilityReadingModel.find({
-      month,
-      isDeleted: false
-    }).populate('room', 'number');
-    return { data: readings };
-  }
-
-  async findOne(id: string) {
-    const utilityReading = await this.utilityReadingModel.findOne({
-      _id: id,
-      isDeleted: false
-    }).populate('room', 'number');
-
-    if (!utilityReading) {
-      throw new NotFoundException('Utility reading not found');
-    }
-
-    return { data: utilityReading };
-  }
-
   async update(id: string, updateUtilityReadingDto: UpdateUtilityReadingDto) {
-    const utilityReading = await this.utilityReadingModel.findOne({
-      _id: id,
-      isDeleted: false
-    }).populate('room', 'number');
-
-    if (!utilityReading) {
+    // Validate if utility reading exists
+    const existingReading = await this.utilityReadingModel.findById(id);
+    if (!existingReading) {
       throw new NotFoundException('Utility reading not found');
-    }
-
-    let roomId = (utilityReading.room as any)._id;
-
-    // If room is being changed, check if new room exists
-    if (updateUtilityReadingDto.room) {
-      const newRoom = await this.findRoomByNumberOrId(updateUtilityReadingDto.room);
-      roomId = newRoom._id;
-
-      // Check if reading already exists for new room and month
-      const existingReading = await this.utilityReadingModel.findOne({
-        room: roomId,
-        month: updateUtilityReadingDto.month || utilityReading.month,
-        _id: { $ne: id },
-        isDeleted: false
-      });
-
-      if (existingReading) {
-        throw new BadRequestException(`Utility reading already exists for room ${newRoom.number} in ${updateUtilityReadingDto.month || utilityReading.month}`);
-      }
     }
 
     // Validate readings if being updated
-    const electricityStart = updateUtilityReadingDto.electricityStart ?? utilityReading.electricityStart;
-    const electricityEnd = updateUtilityReadingDto.electricityEnd ?? utilityReading.electricityEnd;
-    const waterStart = updateUtilityReadingDto.waterStart ?? utilityReading.waterStart;
-    const waterEnd = updateUtilityReadingDto.waterEnd ?? utilityReading.waterEnd;
+    const electricityStart = updateUtilityReadingDto.electricityStart ?? existingReading.electricityStart;
+    const electricityEnd = updateUtilityReadingDto.electricityEnd ?? existingReading.electricityEnd;
+    const waterStart = updateUtilityReadingDto.waterStart ?? existingReading.waterStart;
+    const waterEnd = updateUtilityReadingDto.waterEnd ?? existingReading.waterEnd;
 
     if (electricityEnd < electricityStart) {
       throw new BadRequestException('Electricity end reading cannot be less than start reading');
@@ -144,14 +49,9 @@ export class UtilityReadingsService {
 
     const updatedReading = await this.utilityReadingModel.findByIdAndUpdate(
       id,
-      { 
-        $set: {
-          ...updateUtilityReadingDto,
-          room: roomId
-        }
-      },
+      updateUtilityReadingDto,
       { new: true }
-    ).populate('room', 'number');
+    ).exec();
 
     if (!updatedReading) {
       throw new NotFoundException('Utility reading not found after update');
@@ -160,24 +60,37 @@ export class UtilityReadingsService {
     return { data: updatedReading };
   }
 
-  async remove(id: string) {
-    const utilityReading = await this.utilityReadingModel.findOne({
-      _id: id,
-      isDeleted: false
-    });
+  async findAll() {
+    const utilityReadings = await this.utilityReadingModel.find()
+      .populate('room')
+      .sort({ month: -1 })
+      .exec();
+    return { data: utilityReadings };
+  }
 
+  async findByMonth(month: string) {
+    const utilityReadings = await this.utilityReadingModel.find({ month })
+      .populate('room')
+      .sort({ month: -1 })
+      .exec();
+    return { data: utilityReadings };
+  }
+
+  async findOne(id: string) {
+    const utilityReading = await this.utilityReadingModel.findById(id)
+      .populate('room')
+      .exec();
     if (!utilityReading) {
       throw new NotFoundException('Utility reading not found');
     }
+    return { data: utilityReading };
+  }
 
-    await this.utilityReadingModel.findByIdAndUpdate(id, {
-      isDeleted: true
-    });
-
-    return {
-      data: {
-        _id: id
-      }
-    };
+  async remove(id: string) {
+    const utilityReading = await this.utilityReadingModel.findByIdAndDelete(id);
+    if (!utilityReading) {
+      throw new NotFoundException('Utility reading not found');
+    }
+    return { data: utilityReading };
   }
 } 
