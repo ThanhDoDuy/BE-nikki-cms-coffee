@@ -12,7 +12,7 @@ export class RoomsController {
     }
 
     @Get()
-    findAll(@Query('page') page = '1', @Query('limit') limit = '10', @Query('search') search = '') {
+    findAll(@Query('page') page = '1', @Query('limit') limit = '100', @Query('search') search = '') {
         return this.roomsService.findAll(+page, +limit, search);
     }
 
