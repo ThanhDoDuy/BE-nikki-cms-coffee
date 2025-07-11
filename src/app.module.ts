@@ -4,13 +4,13 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { MealsModule } from './meals/meals.module';
 import { StaffModule } from './staff/staff.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
-import { OrdersModule } from './orders/orders.module';
 import { SettingModule } from './setting/setting.module';
 import { RoomsModule } from './house-renting/room/rooms.module';
 import { TenantModule } from './house-renting/tenant/tenant.module';
 import { UtilityReadingsModule } from './house-renting/utility-readings/utility-readings.module';
 import { InvoiceModule } from './house-renting/invoice/invoice.module';
 import { SettingsModule } from './house-renting/settings/settings.module';
+import { CmsOrderModule } from './cms-order/cms-order.module';
 
 @Module({
   imports: [
@@ -18,13 +18,13 @@ import { SettingsModule } from './house-renting/settings/settings.module';
     MongooseModule.forRoot(process.env.MONGO_URI || ''),
     MealsModule,
     StaffModule,
-    OrdersModule,
     SettingModule,
     RoomsModule,
     TenantModule,
     UtilityReadingsModule,
     InvoiceModule,
-    SettingsModule
+    SettingsModule,
+    CmsOrderModule
   ],
 })
 export class AppModule implements NestModule {
