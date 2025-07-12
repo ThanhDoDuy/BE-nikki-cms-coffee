@@ -11,11 +11,13 @@ import { UtilityReadingsModule } from './house-renting/utility-readings/utility-
 import { InvoiceModule } from './house-renting/invoice/invoice.module';
 import { SettingsModule } from './house-renting/settings/settings.module';
 import { CmsOrderModule } from './cms-order/cms-order.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
     MongooseModule.forRoot(process.env.MONGO_URI || ''),
+    AuthModule,
     MealsModule,
     StaffModule,
     SettingModule,
