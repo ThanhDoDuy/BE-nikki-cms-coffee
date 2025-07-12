@@ -9,11 +9,26 @@ async function bootstrap() {
   // Get allowed origins from environment variable
   const allowedOrigins = (process.env.FRONTEND_URLS || 'http://localhost:3000')
     .split(',')
-    .map(origin => origin.trim());
+    .map(origin => origin.trim())
+    .filter(origin => origin); // Remove empty strings
+
+  console.log('🌐 Allowed Origins:', allowedOrigins);
 
   // Configure CORS
   app.enableCors({
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+        callback(null, true);
+      } else {
+        console.log('❌ Blocked origin:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],

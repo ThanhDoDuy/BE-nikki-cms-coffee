@@ -19,6 +19,11 @@ export class AuthController {
     try {
       // Extract domain from origin URL
       const url = new URL(origin);
+      // Get the main domain without subdomain
+      const parts = url.hostname.split('.');
+      if (parts.length > 2) {
+        return parts.slice(-2).join('.');
+      }
       return url.hostname;
     } catch {
       return undefined;
@@ -47,6 +52,9 @@ export class AuthController {
       throw new UnauthorizedException('Origin not allowed');
     }
 
+    console.log('🔒 Setting cookie for origin:', origin);
+    console.log('🔑 Cookie domain:', this.getCookieDomain(origin));
+
     // Set cookie with appropriate domain based on origin
     response.cookie('auth_token', result.access_token, {
       httpOnly: true,
@@ -70,6 +78,9 @@ export class AuthController {
   ) {
     const origin = request.headers.origin;
     
+    console.log('🔓 Clearing cookie for origin:', origin);
+    console.log('🔑 Cookie domain:', this.getCookieDomain(origin));
+
     response.clearCookie('auth_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
