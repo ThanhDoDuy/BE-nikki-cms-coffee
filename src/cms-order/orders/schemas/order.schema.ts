@@ -26,6 +26,10 @@ export class OrderItem {
 export class Order extends Document {
   createdAt: Date;
   updatedAt: Date;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  userId: Types.ObjectId;
+
   @Prop({ required: true, unique: true })
   orderNumber: string;
 

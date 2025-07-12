@@ -79,7 +79,7 @@ export class AuthService {
     const googleUserInfo = await this.verifyGoogleToken(googleAuthDto.idToken);
     const user = await this.findOrCreateUser(googleUserInfo);
     const token = await this.generateJwtToken(user);
-
+    console.log(token);
     return {
       access_token: token,
       user: {

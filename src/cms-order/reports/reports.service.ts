@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 @Injectable()
 export class ReportsService {
@@ -9,14 +9,14 @@ export class ReportsService {
         @InjectModel('Product') private productModel: Model<any>,
     ) {}
 
-    async getStats() {
+    async getStats(userId: Types.ObjectId) {
         const [totalOrders, totalRevenue, totalProducts] = await Promise.all([
-            this.orderModel.countDocuments({ isDeleted: false }),
+            this.orderModel.countDocuments({ userId, isDeleted: false }),
             this.orderModel.aggregate([
-                { $match: { isDeleted: false, status: { $ne: 'cancelled' } } },
+                { $match: { userId, isDeleted: false, status: { $ne: 'cancelled' } } },
                 { $group: { _id: null, total: { $sum: '$total' } } }
             ]),
-            this.productModel.countDocuments({ isDeleted: false }),
+            this.productModel.countDocuments({ userId, isDeleted: false }),
         ]);
 
         const revenue = totalRevenue.length > 0 ? totalRevenue[0].total : 0;
@@ -30,9 +30,9 @@ export class ReportsService {
         };
     }
 
-    async getOrderStats() {
+    async getOrderStats(userId: Types.ObjectId) {
         const statusStats = await this.orderModel.aggregate([
-            { $match: { isDeleted: false } },
+            { $match: { userId, isDeleted: false } },
             { $group: { _id: '$status', count: { $sum: 1 } } }
         ]);
 
@@ -50,12 +50,13 @@ export class ReportsService {
         return statusMap;
     }
 
-    async getRevenueByMonth() {
+    async getRevenueByMonth(userId: Types.ObjectId) {
         const currentYear = new Date().getFullYear();
         
         return this.orderModel.aggregate([
             { 
                 $match: { 
+                    userId,
                     isDeleted: false, 
                     status: { $ne: 'cancelled' },
                     createdAt: {

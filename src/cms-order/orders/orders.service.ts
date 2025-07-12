@@ -19,14 +19,18 @@ export class OrdersService {
         return `ORD-${timestamp}-${random}`;
     }
 
-    async findAll(): Promise<any[]> {
-        const orders = await this.orderModel.find({ isDeleted: false })
+    async findAll(userId: Types.ObjectId): Promise<any[]> {
+        const orders = await this.orderModel.find({ 
+            userId,
+            isDeleted: false 
+        })
             .sort({ createdAt: -1 })
             .exec();
         
         // Ensure all fields are present with proper defaults
         return orders.map(order => ({
             _id: order._id,
+            userId: order.userId,
             orderNumber: order.orderNumber,
             customerName: order.customerName,
             customerPhone: order.customerPhone,
@@ -34,7 +38,7 @@ export class OrdersService {
             subtotal: order.subtotal || 0,
             shippingFee: order.shippingFee || 0,
             total: order.total || 0,
-            totalPrice: order.total || 0, // Thêm totalPrice để tương thích
+            totalPrice: order.total || 0,
             notes: order.notes,
             status: order.status || 'pending',
             items: order.items || [],
@@ -45,9 +49,10 @@ export class OrdersService {
         }));
     }
 
-    async findOne(id: string): Promise<any> {
+    async findOne(id: string, userId: Types.ObjectId): Promise<any> {
         const order = await this.orderModel.findOne({ 
-            _id: id, 
+            _id: id,
+            userId,
             isDeleted: false 
         }).exec();
         
@@ -55,9 +60,9 @@ export class OrdersService {
             throw new NotFoundException(`Order with ID ${id} not found`);
         }
         
-        // Ensure all fields are present with proper defaults
         return {
             _id: order._id,
+            userId: order.userId,
             orderNumber: order.orderNumber,
             customerName: order.customerName,
             customerPhone: order.customerPhone,
@@ -65,7 +70,7 @@ export class OrdersService {
             subtotal: order.subtotal || 0,
             shippingFee: order.shippingFee || 0,
             total: order.total || 0,
-            totalPrice: order.total || 0, // Thêm totalPrice để tương thích
+            totalPrice: order.total || 0,
             notes: order.notes,
             status: order.status || 'pending',
             items: order.items || [],
@@ -76,18 +81,17 @@ export class OrdersService {
         };
     }
 
-    async create(createOrderDto: CreateOrderDto): Promise<any> {
+    async create(createOrderDto: CreateOrderDto, userId: Types.ObjectId): Promise<any> {
         // Validate products and calculate totals
         const orderItems: any[] = [];
         let subtotal = 0;
 
-        // Handle empty items array
         if (!createOrderDto.items || createOrderDto.items.length === 0) {
             throw new BadRequestException('Order must contain at least one item');
         }
 
         for (const item of createOrderDto.items) {
-            const product = await this.productsService.findOne(item.productId);
+            const product = await this.productsService.findOne(item.productId, userId);
             
             if (!product) {
                 throw new BadRequestException(`Product with ID ${item.productId} not found`);
@@ -113,6 +117,7 @@ export class OrdersService {
         const total = subtotal + (createOrderDto.shippingFee || 0);
         
         const orderData = {
+            userId,
             orderNumber: this.generateOrderNumber(),
             customerName: createOrderDto.customerName,
             customerPhone: createOrderDto.customerPhone,
@@ -129,12 +134,16 @@ export class OrdersService {
         const order = new this.orderModel(orderData);
         const savedOrder = await order.save();
         
-        return this.findOne((savedOrder._id as any));
+        return this.findOne(savedOrder?._id?.toString() || '', userId);
     }
 
-    async update(id: string, updateOrderDto: UpdateOrderDto): Promise<any> {
+    async update(id: string, updateOrderDto: UpdateOrderDto, userId: Types.ObjectId): Promise<any> {
         const order = await this.orderModel.findOneAndUpdate(
-            { _id: id, isDeleted: false },
+            { 
+                _id: id,
+                userId,
+                isDeleted: false 
+            },
             { 
                 ...updateOrderDto,
                 updatedAt: new Date()
@@ -156,9 +165,13 @@ export class OrdersService {
         return order;
     }
 
-    async remove(id: string): Promise<void> {
+    async remove(id: string, userId: Types.ObjectId): Promise<void> {
         const order = await this.orderModel.findOneAndUpdate(
-            { _id: id, isDeleted: false },
+            { 
+                _id: id,
+                userId,
+                isDeleted: false 
+            },
             { 
                 isDeleted: true,
                 updatedAt: new Date()
