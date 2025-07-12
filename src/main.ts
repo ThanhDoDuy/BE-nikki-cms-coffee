@@ -6,12 +6,22 @@ import * as cookieParser from 'cookie-parser';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Simplified CORS since Nginx handles it
+  // Get allowed origins from environment variable
+  const allowedOrigins = (process.env.FRONTEND_URLS || 'http://localhost:3000')
+    .split(',')
+    .map(origin => origin.trim());
+
+  // Configure CORS
   app.enableCors({
-    origin: true,
-    credentials: true
+    origin: allowedOrigins,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie'],
+    maxAge: 86400, // 24 hours in seconds
   });
 
+  // Configure cookie parser
   app.use(cookieParser());
 
   app.useGlobalPipes(new ValidationPipe({
@@ -29,5 +39,6 @@ async function bootstrap() {
 
   await app.listen(port, host);
   console.log(`🚀 Server running at http://${host}:${port}`);
+  console.log('🌐 CORS enabled for:', allowedOrigins);
 }
 bootstrap();
