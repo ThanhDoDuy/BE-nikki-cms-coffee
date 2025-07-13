@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ConfigService } from '@nestjs/config';
+import { CookieOptions } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -11,24 +12,6 @@ export class AuthController {
     private readonly authService: AuthService,
     private configService: ConfigService,
   ) {}
-
-  private getCookieDomain(origin: string | undefined): string | undefined {
-    if (!origin || process.env.NODE_ENV !== 'production') {
-      return undefined;
-    }
-    try {
-      // Extract domain from origin URL
-      const url = new URL(origin);
-      // Get the main domain without subdomain
-      const parts = url.hostname.split('.');
-      if (parts.length > 2) {
-        return parts.slice(-2).join('.');
-      }
-      return url.hostname;
-    } catch {
-      return undefined;
-    }
-  }
 
   @Post('google')
   async googleLogin(
@@ -38,32 +21,43 @@ export class AuthController {
   ) {
     const result = await this.authService.googleLogin(googleAuthDto);
     
-    // Get allowed domains for cookie settings
+    // Get allowed origins from environment variable
     const allowedOrigins = (this.configService.get<string>('FRONTEND_URLS') || '')
       .split(',')
       .map(origin => origin.trim())
-      .filter(origin => origin); // Remove empty strings
+      .filter(origin => origin);
 
     // Get origin from request headers
     const origin = request.headers.origin;
     
+    console.log('🌐 Request origin:', origin);
+    console.log('🌐 Allowed origins:', allowedOrigins);
+    
     // Verify if origin is allowed
     if (process.env.NODE_ENV === 'production' && origin && !allowedOrigins.includes(origin)) {
+      console.log('❌ Origin not allowed:', origin);
       throw new UnauthorizedException('Origin not allowed');
     }
 
     const token = result.access_token;
-    // Set cookie with appropriate domain based on origin
-    response.cookie('auth_token', token, {
+    
+    // Set cookie with debug logging
+    const cookieOptions: CookieOptions = {
       httpOnly: true,
-      secure: true,  // Required for HTTPS
-      sameSite: 'none',  // Required for cross-origin
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    });
+    };
+
+    console.log('🍪 Setting cookie with options:', cookieOptions);
+    
+    response.cookie('auth_token', token, cookieOptions);
+    console.log('✅ Cookie set for token:', token.substring(0, 20) + '...');
 
     return {
-      user: result.user
+      user: result.user,
+      message: 'Login successful'
     };
   }
 
@@ -73,18 +67,18 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
     @Req() request: Request,
   ) {
-    const origin = request.headers.origin;
-    
-    console.log('🔓 Clearing cookie for origin:', origin);
-    console.log('🔑 Cookie domain:', this.getCookieDomain(origin));
+    console.log('🔓 Logout request from origin:', request.headers.origin);
 
-    response.clearCookie('auth_token', {
+    const cookieOptions: CookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
-      domain: this.getCookieDomain(origin)
-    });
+    };
+
+    console.log('🍪 Clearing cookie with options:', cookieOptions);
+    
+    response.clearCookie('auth_token', cookieOptions);
     return { message: 'Logged out successfully' };
   }
 
