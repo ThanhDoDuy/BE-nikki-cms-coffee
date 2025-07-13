@@ -52,17 +52,14 @@ export class AuthController {
       throw new UnauthorizedException('Origin not allowed');
     }
 
-    console.log('🔒 Setting cookie for origin:', origin);
-    console.log('🔑 Cookie domain:', this.getCookieDomain(origin));
-
+    const token = result.access_token;
     // Set cookie with appropriate domain based on origin
-    response.cookie('auth_token', result.access_token, {
+    response.cookie('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      secure: true,  // Required for HTTPS
+      sameSite: 'none',  // Required for cross-origin
       path: '/',
-      domain: this.getCookieDomain(origin)
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
 
     return {
